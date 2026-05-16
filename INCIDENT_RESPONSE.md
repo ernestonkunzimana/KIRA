@@ -12,10 +12,10 @@
 
 | Level | Impact | Response Time | Examples |
 |-------|--------|----------------|----------|
-| **P1 - Critical** | Complete system down | Immediate (5 min) | All services down, data loss, security breach |
-| **P2 - High** | Partial degradation | 15-30 minutes | API down, frontend not responding, predictions failing |
-| **P3 - Medium** | Slow performance | 1-2 hours | High latency, occasional errors, database slow |
-| **P4 - Low** | Minor issues | Next business day | UI bug, informational error, cosmetic issue |
+| P1 - Critical | Complete system down | Immediate (5 min) | All services down, data loss, security breach |
+| P2 - High | Partial degradation | 15-30 minutes | API down, frontend not responding, predictions failing |
+| P3 - Medium | Slow performance | 1-2 hours | High latency, occasional errors, database slow |
+| P4 - Low | Minor issues | Next business day | UI bug, informational error, cosmetic issue |
 
 ---
 

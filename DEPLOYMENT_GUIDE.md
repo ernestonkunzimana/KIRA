@@ -21,7 +21,7 @@
 
 ## Pre-Deployment Checklist
 
-### ✓ Infrastructure Requirements
+### Infrastructure Requirements
 - [ ] Linux server (Ubuntu 20.04 LTS or later)
 - [ ] Docker 24+ and Docker Compose v2
 - [ ] PostgreSQL 13+ (local or cloud-hosted)
@@ -33,7 +33,7 @@
 - [ ] RAM: minimum 4GB
 - [ ] CPU: minimum 2 cores
 
-### ✓ Security Requirements
+### Security Requirements
 - [ ] Generate `.env` file with strong secrets
 - [ ] TLS certificates obtained (Let's Encrypt or commercial CA)
 - [ ] Secrets Manager configured (AWS Secrets Manager, HashiCorp Vault, etc.)
@@ -41,7 +41,7 @@
 - [ ] SSH keys configured for deployment automation
 - [ ] Audit logging enabled
 
-### ✓ Code & Configuration
+### Code & Configuration
 - [ ] Git repository cloned to production server
 - [ ] All required environment variables documented
 - [ ] Docker images built and tested locally

@@ -1,7 +1,6 @@
 # KIRA Troubleshooting Guide
 
-**Last Updated:** May 15, 2026  
-**Status:** Production Ready
+**Last Updated:** May 15, 2026
 
 ---
 
