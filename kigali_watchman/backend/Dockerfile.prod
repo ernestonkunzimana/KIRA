@@ -1,0 +1,31 @@
+# Backend production Dockerfile (Python 3.11 slim)
+FROM python:3.11-slim
+
+# Create non-root user
+RUN groupadd -r kira && useradd -r -g kira -m -d /home/kira kira
+WORKDIR /app
+
+# Install system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY kigali_watchman/backend/requirements.txt /app/requirements.txt
+RUN python -m pip install --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Copy app
+COPY kigali_watchman/backend /app
+
+# Fix permissions
+RUN chown -R kira:kira /app
+USER kira
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Gunicorn will be the entrypoint
+CMD ["gunicorn", "main:create_app()", "-w", "4", "-b", "0.0.0.0:5000", "--worker-class", "gthread", "--threads", "4", "--timeout", "120", "--log-level", "info"]

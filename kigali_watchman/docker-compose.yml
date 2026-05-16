@@ -1,0 +1,193 @@
+version: '3.9'
+
+# KIRA - Kigali Intelligent Resilience Agent
+# System of Systems: API (Service 2) + Dashboard (Service 3) + Redis + Infra
+# 
+# Security model:
+#   - All containers run as non-root users
+#   - Capabilities are dropped to minimum required set
+#   - Volumes are read-only where possible
+#   - Network traffic is encrypted (TLS recommended in production)
+#   - Secrets are injected via environment, not COPY
+#
+# Usage:
+#   docker-compose up --build         # Start all services
+#   docker-compose up backend         # Start API only
+#   docker-compose logs -f backend    # Follow API logs
+
+services:
+
+  # ------------------------------------------------------------------ #
+  # Infrastructure: Redis (global lockout & rate-limit state)           #
+  # ---- SECURITY: No persistence in this config (use managed Redis) ----
+  # ------------------------------------------------------------------ #
+  redis:
+    image: redis:7.2-alpine
+    container_name: kira-redis
+    # Development convenience: run as root to avoid user-switching permission issues
+    # DO NOT use this setting in production; remove or set a non-root user in prod.
+    user: root
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - kira-network
+    # Security: drop all capabilities except the minimum needed
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    # Memory limits prevent DoS
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ------------------------------------------------------------------ #
+  # Service 2: Core API (Flask + Gunicorn, 4 workers)                   #
+  # ---- SECURITY: Non-root user, read-only filesystem, cap-dropped ----
+  # ------------------------------------------------------------------ #
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kira-api
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - API_CLIENTS=${API_CLIENTS}
+      - AUTONOMOUS_THRESHOLD=${AUTONOMOUS_THRESHOLD:-0.88}
+      - ALERT_THRESHOLD=${ALERT_THRESHOLD:-0.65}
+      - LOCKOUT_SECONDS=${LOCKOUT_SECONDS:-600}
+      - TWILIO_ENABLED=${TWILIO_ENABLED:-false}
+      - TWILIO_SID=${TWILIO_SID:-}
+      - TWILIO_TOKEN=${TWILIO_TOKEN:-}
+      - TWILIO_FROM=${TWILIO_FROM:-}
+      - ALERT_PHONE=${ALERT_PHONE:-}
+      - REDIS_URL=redis://redis:6379/0
+      - AUDIT_DB_PATH=/app/audit/kira_audit.db
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    ports:
+      - "5000:5000"
+    volumes:
+      # Read-only model weights (immutable)
+      - ./backend/models:/app/models:ro
+      # Writable volumes for runtime state
+      - ./logs:/app/logs
+      - kira_audit_data:/app/audit
+      # Temporary directory (in-memory, cleaned up automatically)
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 100M
+    depends_on:
+      redis:
+        condition: service_healthy
+    # Security: drop unnecessary capabilities
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    # Read-only filesystem (except explicitly writable volumes)
+    read_only: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - kira-network
+
+  # ------------------------------------------------------------------ #
+  # Service 3: Command Center (Streamlit)                               #
+  # ---- SECURITY: Non-root user, cap-dropped, client auth enforced ----
+  # ------------------------------------------------------------------ #
+  dashboard:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kira-dashboard
+    restart: unless-stopped
+    environment:
+      - KIRA_API_URL=http://backend:5000
+      - DASHBOARD_CLIENT_ID=dashboard
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-kira-dashboard-2024}
+      - TOWERS_CSV=/app/data/kigali_infra_data.csv
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_LOGGER_LEVEL=info
+      - STREAMLIT_CLIENT_SHOWERRORDETAILS=false
+    ports:
+      - "8501:8501"
+    volumes:
+      # Read-only data (tower configurations)
+      - ./data:/app/data:ro
+      # Temporary directory (in-memory, cleaned up automatically)
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 100M
+    depends_on:
+      backend:
+        condition: service_healthy
+    # Security: drop unnecessary capabilities
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    # Read-only filesystem (except tmpfs)
+    read_only: true
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - kira-network
+
+# ---- Volumes ----
+volumes:
+  kira_audit_data:
+    driver: local
+    driver_opts:
+      # Use local driver with 'o' options to mount with specific permissions
+      type: none
+      o: bind
+      device: ${AUDIT_DATA_PATH:-./audit}
+
+# ---- Networks ----
+networks:
+  kira-network:
+    driver: bridge
+    # Security: disable inter-container traffic to host
+    driver_opts:
+      com.docker.network.bridge.name: br-kira

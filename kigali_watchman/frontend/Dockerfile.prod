@@ -1,0 +1,24 @@
+# Frontend production Dockerfile (Streamlit)
+FROM python:3.11-slim
+
+RUN groupadd -r kira && useradd -r -g kira -m -d /home/kira kira
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY kigali_watchman/frontend/requirements.txt /app/requirements.txt
+RUN python -m pip install --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY kigali_watchman/frontend /app
+RUN chown -R kira:kira /app
+USER kira
+
+ENV STREAMLIT_SERVER_HEADLESS=true
+ENV STREAMLIT_ENABLE_CORS=false
+ENV STREAMLIT_SERVER_PORT=8501
+
+CMD ["streamlit", "run", "app.py", "--server.port", "8501", "--server.enableCORS", "false"]

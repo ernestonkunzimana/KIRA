@@ -1,0 +1,131 @@
+# Phase 6: Pre-commit Hooks for Local Enforcement
+# Install hooks: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+# Format enforcement: Black code formatter
+- repo: https://github.com/psf/black
+  rev: 24.1.1
+  hooks:
+  - id: black
+    language_version: python3.11
+    args: [ --line-length=100 ]
+    files: ^(backend|frontend)/
+
+# Import sorting: isort
+- repo: https://github.com/PyCQA/isort
+  rev: 5.13.2
+  hooks:
+  - id: isort
+    args: [ --profile=black, --line-length=100 ]
+    files: ^(backend|frontend)/
+
+# Trailing whitespace and end-of-file cleanup
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: check-yaml
+    args: [ --unsafe ]
+  - id: check-json
+  - id: check-merge-conflict
+  - id: check-added-large-files
+    args: [ --maxkb=1000 ]
+  - id: debug-statements
+  - id: mixed-line-ending
+    args: [ --fix=lf ]
+
+# Linting: Pylint
+- repo: https://github.com/PyCQA/pylint
+  rev: pylint-3.0.3
+  hooks:
+  - id: pylint
+    args: [ --max-line-length=100, --fail-under=8.0 ]
+    files: ^backend/
+    stages: [ commit ]
+    language: python
+    types: [ python ]
+    additional_dependencies: [ flask, flask-jwt-extended, redis ]
+
+# Style checking: Flake8
+- repo: https://github.com/PyCQA/flake8
+  rev: 7.0.0
+  hooks:
+  - id: flake8
+    args: [ --max-line-length=100, --count ]
+    files: ^(backend|frontend)/
+    types: [ python ]
+
+# Security: bandit
+- repo: https://github.com/PyCQA/bandit
+  rev: 1.7.5
+  hooks:
+  - id: bandit
+    args: [ -ll ] # Low level and below
+    files: ^backend/
+    types: [ python ]
+    stages: [ commit ]
+
+# YAML validation
+- repo: https://github.com/adrienverge/yamllint
+  rev: v1.34.0
+  hooks:
+  - id: yamllint
+    args: [ --strict ]
+    files: ^(docker-compose\.yml|\.github/workflows/.*\.yml)$
+
+# Markdown linting
+- repo: https://github.com/igorshubovych/markdownlint-cli
+  rev: v0.36.0
+  hooks:
+  - id: markdownlint
+    args: [ --fix ]
+    files: \.(md|MD)$
+
+# Secrets scanning: Detect secrets before commit
+- repo: https://github.com/Yelp/detect-secrets
+  rev: v1.4.0
+  hooks:
+  - id: detect-secrets
+    args: [ --baseline, .secrets.baseline, --force-use-gitignore ]
+    stages: [ commit ]
+
+# Dockerfile linting
+- repo: https://github.com/hadolint/hadolint
+  rev: v2.13.0
+  hooks:
+  - id: hadolint-docker
+    files: Dockerfile
+
+# Local hook: Run pytest
+- repo: local
+  hooks:
+  - id: pytest-check
+    name: pytest
+    entry: pytest tests/ backend/tests/ --timeout=60 -q
+    language: system
+    types: [ python ]
+    stages: [ commit ]
+    pass_filenames: false
+    always_run: true
+
+  - id: config-validation
+    name: Config Validation
+    entry: python backend/config_validator.py
+    language: system
+    files: ^(backend/config\.py|\.env)$
+    stages: [ commit ]
+    pass_filenames: false
+
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: [ hadolint-docker ] # Docker image building can be slow
+  submodules: false

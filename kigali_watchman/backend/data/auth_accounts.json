@@ -1,0 +1,53 @@
+{
+  "accounts": {
+    "e2e.final": {
+      "created_at": 1778877395.6577506,
+      "department": "Testing",
+      "email": "final@test.com",
+      "first_name": "Final",
+      "last_name": "Test",
+      "organization": "KIRA",
+      "password_hash": "$2b$12$9YB/wdh.sFWz39rrjXWZaOlR3tONdV3Sx/w8/gjRe4KYEx4d1paQC",
+      "phone": "",
+      "role": "Tester",
+      "verified": true
+    },
+    "e2e.test001": {
+      "created_at": 1778876682.9307978,
+      "department": "Testing",
+      "email": "e2e@test.com",
+      "first_name": "E2E",
+      "last_name": "Tester",
+      "organization": "KIRA",
+      "password_hash": "$2b$12$pB1hBMyuNrXvjkgLuX42nu13u38yHYbEovqz0H2Vp5aH.70hOtp8C",
+      "phone": "",
+      "role": "Tester",
+      "verified": true
+    },
+    "e2e.test002": {
+      "created_at": 1778877343.1745102,
+      "department": "Testing",
+      "email": "e2e@test.com",
+      "first_name": "E2E",
+      "last_name": "Tester",
+      "organization": "KIRA",
+      "password_hash": "$2b$12$RofRjyj1kaXBAA/hV/VKKeFdSjoTC0iHABKZttSOUHQrIUmcu3FM.",
+      "phone": "",
+      "role": "Tester",
+      "verified": true
+    },
+    "verify.user01": {
+      "created_at": 1778870694.6785908,
+      "department": "Operations",
+      "email": "verify.user01@example.com",
+      "first_name": "Verify",
+      "last_name": "User",
+      "organization": "KIRA",
+      "password": "SecurePass123!",
+      "phone": "+250700000111",
+      "role": "Analyst",
+      "verified": true
+    }
+  },
+  "pending": {}
+}

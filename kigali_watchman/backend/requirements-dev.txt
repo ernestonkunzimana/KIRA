@@ -1,0 +1,10 @@
+Flask
+Flask-JWT-Extended
+Flask-Limiter
+python-dotenv
+flask-cors
+Flask-Caching
+Flask-Compress
+bcrypt
+redis
+pytest
