@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: kira-redis-prod
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - kira-network
+
+  backend:
+    build:
+      context: ./kigali_watchman/backend
+      dockerfile: Dockerfile.prod
+    environment:
+      - FLASK_ENV=production
+      - REDIS_URL=redis://redis:6379/0
+      - AUDIT_DB_PATH=/app/audit/kira_audit.db
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    volumes:
+      - ./kigali_watchman/backend/models:/app/models:ro
+      - ./logs:/app/logs
+      - kira_audit_data:/app/audit
+    depends_on:
+      - redis
+    networks:
+      - kira-network
+
+  dashboard:
+    build:
+      context: ./kigali_watchman/frontend
+      dockerfile: Dockerfile.prod
+    environment:
+      - KIRA_API_URL=http://backend:5000
+      - STREAMLIT_SERVER_HEADLESS=true
+    depends_on:
+      - backend
+    networks:
+      - kira-network
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      # For TLS certs mount letsencrypt folder in production
+      - ./nginx/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - backend
+      - dashboard
+    networks:
+      - kira-network
+
+volumes:
+  kira_audit_data:
+
+networks:
+  kira-network:
+    driver: bridge

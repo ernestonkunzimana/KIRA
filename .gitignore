@@ -1,0 +1,100 @@
+# Environment Variables (NEVER commit .env or secrets)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.pydevproject
+.settings/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# ML/Data files (large)
+*.h5
+*.pkl
+*.joblib
+*.npy
+*.npz
+*.csv
+kigali_watchman/dataset/
+kigali_watchman/models/
+kigali_watchman/backend/models/
+kigali_watchman/backend/mlruns/
+
+# Logs
+*.log
+logs/
+kigali_watchman/logs/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+kira_audit.db
+
+# Cache and temp
+.cache/
+tmp/
+temp/
+*.tmp
+
+# Docker
+.dockerignore
+.docker
+
+# Archives
+archive/
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Large documents (optional - for prod deployment)
+*.docx
+*.pdf
+*.xlsx
