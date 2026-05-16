@@ -9,20 +9,25 @@ import numpy as np
 import pydeck as pdk
 import requests
 import datetime
-import plotly.express as px
-import plotly.graph_objects as go
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    PLOTLY_AVAILABLE = True
+except Exception:
+    PLOTLY_AVAILABLE = False
 import os
 from typing import Dict, Tuple
 import time
 
 from kira_auth import init_session_state, logout, get_session_info, authenticate_user
+import streamlit.components.v1 as components
 from pages_auth import render_login_page, render_signup_page, render_verify_page
 from styles import THEME, GLOBAL_CSS, get_status_badge_html
 
 # ── Page Config ──────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="KIRA | Command Center",
-    page_icon="🔋",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -81,39 +86,56 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 col_logo, col_title, col_logout = st.columns([1, 3, 1])
 
 with col_logo:
-    st.markdown("### 🔋 KIRA")
+    st.markdown("### KIRA")
 
 with col_title:
     st.markdown("#### System-of-Systems Command Center")
 
 with col_logout:
     st.write("")
-    if st.button("🚪 Logout", use_container_width=True):
+    if st.button("Logout", use_container_width=True):
         logout()
 
 st.divider()
 
 # ── Sidebar Session Info ─────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 👤 Session Information")
+    st.markdown("### Session Information")
     
     session = get_session_info()
     st.markdown(f"""
     **Client ID:** `{session['client_id']}`  
     **Role:** `operator`  
-    **Status:** ✅ Active
+    **Status:** Active
     """)
+
+    # Token display and copy helper
+    token_val = st.session_state.get('token') or ''
+        if token_val:
+                st.markdown('#### API Token')
+                st.code(token_val, language='')
+                # Use Streamlit components to provide a clipboard button
+                safe_html = f"""
+                <div>
+                    <button id='copy-btn' style='background:#16a34a;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;'>Copy token</button>
+                    <script>
+                        const btn = document.getElementById('copy-btn');
+                        btn.addEventListener('click', () => navigator.clipboard.writeText({repr(token_val)}));
+                    </script>
+                </div>
+                """
+                components.html(safe_html, height=60)
     
     st.divider()
     # Live / Auto-refresh
-    st.markdown("### 🔁 Live Mode")
+    st.markdown("### Live Mode")
     live_mode = st.checkbox('Live — auto-refresh health and map', value=False, key='live_mode')
     refresh_interval = st.slider('Refresh interval (s)', 2, 30, 5, key='refresh_interval')
     if live_mode:
         st.markdown(f"Auto-refreshing every {refresh_interval}s")
     
     # Active Assets
-    st.markdown("### 📍 Active Assets")
+    st.markdown("### Active Assets")
     towers_df = load_towers()
     
     with st.expander("View Towers", expanded=True):
@@ -126,7 +148,7 @@ with st.sidebar:
     st.divider()
     
     # Manual Override
-    st.markdown("### ⚡ Manual Override")
+    st.markdown("### Manual Override")
     
     override_tower = st.selectbox('Tower', towers_df['tower_id'].tolist(), key='override_tower')
     override_action = st.selectbox(
@@ -146,7 +168,7 @@ with st.sidebar:
         key='override_reason'
     )
     
-    if st.button('⚡ Execute Override', type='primary', use_container_width=True):
+    if st.button('Execute Override', type='primary', use_container_width=True):
         if override_reason:
             district = towers_df[towers_df['tower_id'] == override_tower]['district'].values[0]
             with st.spinner('Authorizing override...'):
@@ -163,7 +185,7 @@ with st.sidebar:
                         timeout=5
                     )
                     if r.status_code == 200:
-                        st.success('✅ Override executed & logged')
+                        st.success('Override executed & logged')
                     else:
                         st.error(f'Override failed: {r.text}')
                 except Exception as e:
@@ -173,7 +195,7 @@ with st.sidebar:
 
 
 # ── System Health Status ─────────────────────────────────────────────────────
-st.markdown("### 🔍 System Health Status")
+st.markdown("### System Health Status")
 
 @st.cache_data(ttl=5)
 def _cached_health(api_url: str):
@@ -195,50 +217,50 @@ try:
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, {THEME['card_bg']} 0%, #1e293b 100%);
                     border: 1px solid {THEME['border']}; border-radius: 12px; padding: 16px; text-align: center;">
-            <div style="font-size: 2rem; margin-bottom: 8px;">🟢</div>
+            <div style="width:18px;height:18px;border-radius:50%;background:{THEME['primary']};margin:0 auto 8px;box-shadow:0 4px 10px rgba(0,0,0,0.2);"></div>
             <div style="color: {THEME['text_muted']}; font-size: 0.85rem; margin-bottom: 8px;">API Gateway</div>
             <div style="color: {THEME['primary']}; font-weight: 700;">OK</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        ml_status = "🟢 OK" if comps.get('models') == 'ok' else "🔴 FAIL"
+        ml_status = "OK" if comps.get('models') == 'ok' else "FAIL"
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, {THEME['card_bg']} 0%, #1e293b 100%);
                     border: 1px solid {THEME['border']}; border-radius: 12px; padding: 16px; text-align: center;">
-            <div style="font-size: 2rem; margin-bottom: 8px;">🧠</div>
+            <div style="width:18px;height:18px;border-radius:50%;background:{THEME['info'] if comps.get('models')=='ok' else THEME['error']};margin:0 auto 8px;"></div>
             <div style="color: {THEME['text_muted']}; font-size: 0.85rem; margin-bottom: 8px;">ML Ensembles</div>
             <div style="color: {THEME['primary']}; font-weight: 700;">{ml_status}</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
-        redis_status = "🟢 OK" if comps.get('redis') == 'ok' else "🔴 FAIL"
+        redis_status = "OK" if comps.get('redis') == 'ok' else "FAIL"
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, {THEME['card_bg']} 0%, #1e293b 100%);
                     border: 1px solid {THEME['border']}; border-radius: 12px; padding: 16px; text-align: center;">
-            <div style="font-size: 2rem; margin-bottom: 8px;">⚙️</div>
+            <div style="width:18px;height:18px;border-radius:50%;background:{THEME['primary'] if comps.get('redis')=='ok' else THEME['error']};margin:0 auto 8px;"></div>
             <div style="color: {THEME['text_muted']}; font-size: 0.85rem; margin-bottom: 8px;">Redis Cache</div>
             <div style="color: {THEME['primary']}; font-weight: 700;">{redis_status}</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
-        db_status = "🟢 OK" if comps.get('database') == 'ok' else "🔴 FAIL"
+        db_status = "OK" if comps.get('database') == 'ok' else "FAIL"
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, {THEME['card_bg']} 0%, #1e293b 100%);
                     border: 1px solid {THEME['border']}; border-radius: 12px; padding: 16px; text-align: center;">
-            <div style="font-size: 2rem; margin-bottom: 8px;">💾</div>
+            <div style="width:18px;height:18px;border-radius:50%;background:{THEME['primary'] if comps.get('database')=='ok' else THEME['error']};margin:0 auto 8px;"></div>
             <div style="color: {THEME['text_muted']}; font-size: 0.85rem; margin-bottom: 8px;">Audit Database</div>
             <div style="color: {THEME['primary']}; font-weight: 700;">{db_status}</div>
         </div>
         """, unsafe_allow_html=True)
     
     if health.get('status') != 'healthy':
-        st.warning(f"⚠️ System Degraded: {', '.join(health.get('startup_errors', []))}")
+        st.warning(f"System Degraded: {', '.join(health.get('startup_errors', []))}")
 
 except Exception as e:
-    st.error(f"🚨 CRITICAL: KIRA Backend Unreachable. Error: {e}")
+    st.error(f"CRITICAL: KIRA Backend Unreachable. Error: {e}")
     st.stop()
 
 # Auto-refresh: when live_mode is enabled, wait 'refresh_interval' seconds and rerun
@@ -249,7 +271,7 @@ if st.session_state.get('live_mode'):
 st.divider()
 
 # ── Live Tower Map ───────────────────────────────────────────────────────────
-st.markdown("### 🗺️ Live Tower Map — Kigali")
+st.markdown("### Live Tower Map — Kigali")
 
 towers_df = load_towers()
 
@@ -284,7 +306,7 @@ st.divider()
 def send_and_render(endpoint: str, sensor_data: dict, tower_id: str, district: str):
     """Send prediction request and render results."""
     if not st.session_state.token:
-        st.error('❌ Not authenticated')
+        st.error('Not authenticated')
         return
     
     payload = {'tower_id': tower_id, 'district': district, 'sensor_data': sensor_data}
@@ -304,7 +326,7 @@ def send_and_render(endpoint: str, sensor_data: dict, tower_id: str, district: s
                 timeout=10,
             )
         except requests.Timeout:
-            st.error('⏱️ Request timed out')
+            st.error('Request timed out')
             return
         except Exception as e:
             st.error(f'Error: {e}')
@@ -327,11 +349,11 @@ def send_and_render(endpoint: str, sensor_data: dict, tower_id: str, district: s
             # Decision
             decision = align.get('decision', '')
             if 'AUTONOMOUS' in decision:
-                st.success(f"✅ **AUTONOMOUS ACTION**: {align.get('action_name', '')}")
+                st.success(f"AUTONOMOUS ACTION: {align.get('action_name', '')}")
             elif 'ALERT_HUMAN' in decision:
-                st.warning(f"⚠️ **HUMAN REQUIRED**: {align.get('action_name', '')}")
+                st.warning(f"HUMAN REQUIRED: {align.get('action_name', '')}")
             elif 'BLOCKED' in decision:
-                st.info(f"🔒 **BLOCKED**: {align.get('reasoning', '')[:120]}")
+                st.info(f"BLOCKED: {align.get('reasoning', '')[:120]}")
             
             # Metrics
             m1, m2, m3, m4 = st.columns(4)
@@ -339,12 +361,12 @@ def send_and_render(endpoint: str, sensor_data: dict, tower_id: str, district: s
             m2.metric('LSTM Urgency', f"Class {pred.get('lstm_urgency_class', 'N/A')}")
             m3.metric('Anomaly Score', f"{pred.get('anomaly_score', 0):.4f}")
             anomaly = pred.get('anomaly_flag', False)
-            m4.metric('Anomaly Flag', '🚨 YES' if anomaly else '✅ NO')
+            m4.metric('Anomaly Flag', 'YES' if anomaly else 'NO')
             
             # SHAP
             shap = pred.get('shap_explanation')
             if shap:
-                st.subheader('🔍 AI Decision Rationale')
+                st.subheader('AI Decision Rationale')
                 st.info(shap.get('human_readable', ''))
                 
                 top_drivers = shap.get('top_drivers', [])
@@ -353,17 +375,21 @@ def send_and_render(endpoint: str, sensor_data: dict, tower_id: str, district: s
                     df_shap['Direction'] = df_shap['Impact'].apply(
                         lambda x: 'Increase Risk' if x > 0 else 'Decrease Risk'
                     )
-                    fig = px.bar(
-                        df_shap, x='Impact', y='Feature', orientation='h',
-                        color='Direction',
-                        color_discrete_map={
-                            'Increase Risk': '#ef4444',
-                            'Decrease Risk': '#22c55e'
-                        },
-                        title='Feature Importance (SHAP)'
-                    )
-                    fig.update_layout(height=300, margin=dict(l=0, r=0, t=30, b=0))
-                    st.plotly_chart(fig, use_container_width=True)
+                    if PLOTLY_AVAILABLE:
+                        fig = px.bar(
+                            df_shap, x='Impact', y='Feature', orientation='h',
+                            color='Direction',
+                            color_discrete_map={
+                                'Increase Risk': '#ef4444',
+                                'Decrease Risk': '#22c55e'
+                            },
+                            title='Feature Importance (SHAP)'
+                        )
+                        fig.update_layout(height=300, margin=dict(l=0, r=0, t=30, b=0))
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.markdown('Plotly not installed. Showing raw feature importance table:')
+                        st.dataframe(df_shap.sort_values('Impact', ascending=False), use_container_width=True)
         else:
             st.error(f'API error {res.status_code}')
     
@@ -371,9 +397,9 @@ def send_and_render(endpoint: str, sensor_data: dict, tower_id: str, district: s
 
 
 # ── Tabs: 3 Infrastructure Domains ───────────────────────────────────────────
-st.markdown("### 🔄 Domain-Specific Analysis")
+st.markdown("### Domain-Specific Analysis")
 
-tab_iot, tab_grid, tab_gen = st.tabs(['📡 Telecom IoT', '⚡ REG Power Grid', '⚙️ Backup Generators'])
+tab_iot, tab_grid, tab_gen = st.tabs(['Telecom IoT', 'REG Power Grid', 'Backup Generators'])
 
 # IoT Tab
 with tab_iot:
@@ -401,7 +427,7 @@ with tab_iot:
     
     with col2:
         st.subheader('Analysis Results')
-        if st.button('🧠 Run Analysis', type='primary', key='iot_btn', use_container_width=True):
+        if st.button('Run Analysis', type='primary', key='iot_btn', use_container_width=True):
             send_and_render('/api/v1/predict/iot', iot_data, selected_tower, tower_district)
 
 # Grid Tab
@@ -435,7 +461,7 @@ with tab_grid:
     
     with col2:
         st.subheader('Analysis Results')
-        if st.button('🧠 Run Analysis', type='primary', key='grid_btn', use_container_width=True):
+        if st.button('Run Analysis', type='primary', key='grid_btn', use_container_width=True):
             send_and_render('/api/v1/predict/grid', grid_data, selected_tower_g, district_g)
 
 # Generator Tab
@@ -462,20 +488,20 @@ with tab_gen:
     
     with col2:
         st.subheader('Analysis Results')
-        if st.button('🧠 Run Analysis', type='primary', key='gen_btn', use_container_width=True):
+        if st.button('Run Analysis', type='primary', key='gen_btn', use_container_width=True):
             send_and_render('/api/v1/predict/generator', gen_data, selected_tower_gen, district_gen)
 
 st.divider()
 
 # ── Audit Trail ──────────────────────────────────────────────────────────────
-st.markdown("### 📋 Audit Trail")
+st.markdown("### Audit Trail")
 
 col_a1, col_a2 = st.columns([1, 3])
 
 with col_a1:
     f_tower = st.selectbox('Filter by Tower', ['All'] + towers_df['tower_id'].tolist())
     f_limit = st.slider('Records', 10, 200, 50)
-    load_audit = st.button('🔍 Query Log', use_container_width=True)
+    load_audit = st.button('Query Log', use_container_width=True)
 
 with col_a2:
     if load_audit and st.session_state.token:
@@ -503,4 +529,4 @@ with col_a2:
         except Exception as e:
             st.error(f'Query Failed: {e}')
 
-st.caption(f'🕐 {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC | KIRA v2.4.0')
+st.caption(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC | KIRA v2.4.0')

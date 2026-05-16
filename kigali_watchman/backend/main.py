@@ -35,8 +35,15 @@ if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
 # Dynamic Log Path (Handles both local and Docker environments)
-LOG_DIR = os.path.join(BASE_DIR, '..', 'logs')
-os.makedirs(LOG_DIR, exist_ok=True)
+# Prefer explicit environment override, otherwise keep logs under the app directory
+# to avoid attempting to write to container root ("/logs") when running as non-root.
+LOG_DIR = os.environ.get('LOG_DIR') or os.path.join(BASE_DIR, 'logs')
+try:
+    os.makedirs(LOG_DIR, exist_ok=True)
+except Exception:
+    # Best-effort: fall back to a writable temp dir if creation fails
+    LOG_DIR = os.environ.get('LOG_DIR') or '/tmp/kira_logs'
+    os.makedirs(LOG_DIR, exist_ok=True)
 LOG_FILE = os.path.join(LOG_DIR, 'system_audit.log')
 
 from datetime import datetime, timezone
@@ -258,53 +265,116 @@ def _register_routes(app: Flask, limiter: Limiter):
     # ------------------------------------------------------------------ #
     @app.route('/docs', methods=['GET'])
     def api_docs():
-        docs_html = """
+        # Serve an interactive Swagger UI that consumes the OpenAPI JSON at /openapi.json
+        swagger_html = """
         <!DOCTYPE html>
         <html>
         <head>
-            <title>KIRA API Documentation</title>
-            <style>
-                body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #f4f4f9; color: #333; }
-                h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-                h2 { color: #2980b9; margin-top: 30px; }
-                code { background: #eee; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
-                .method { font-weight: bold; color: #e67e22; }
-                .endpoint { font-weight: bold; color: #27ae60; }
-                .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-            </style>
+            <meta charset='utf-8' />
+            <meta name='viewport' content='width=device-width, initial-scale=1'>
+            <title>KIRA API - Swagger UI</title>
+            <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@4/swagger-ui.css" />
+            <style>body { margin:0; background:#f7fafc; }</style>
         </head>
         <body>
-            <h1>📡 KIRA Core API Documentation</h1>
-            <p>Welcome to the Kigali Intelligent Resilience Agent (KIRA) Core API. All <code>/api/v1/*</code> endpoints require a Bearer JWT token.</p>
-            
-            <div class="box">
-                <h2>🔐 Authentication</h2>
-                <p><span class="method">POST</span> <span class="endpoint">/auth/token</span></p>
-                <p>Obtain an access token. Body: <code>{"client_id": "...", "client_secret": "..."}</code></p>
-            </div>
-
-            <div class="box">
-                <h2>🩺 Health & Monitoring</h2>
-                <p><span class="method">GET</span> <span class="endpoint">/api/v1/health</span> - System health check</p>
-                <p><span class="method">GET</span> <span class="endpoint">/api/v1/model/info</span> - Model metadata</p>
-            </div>
-
-            <div class="box">
-                <h2>🧠 Inference</h2>
-                <p><span class="method">POST</span> <span class="endpoint">/api/v1/predict/iot</span> - Telecom IoT prediction</p>
-                <p><span class="method">POST</span> <span class="endpoint">/api/v1/predict/grid</span> - Power Grid prediction</p>
-                <p><span class="method">POST</span> <span class="endpoint">/api/v1/predict/generator</span> - Generator maintenance</p>
-            </div>
-
-            <div class="box">
-                <h2>📋 Audit & Overrides</h2>
-                <p><span class="method">GET</span> <span class="endpoint">/api/v1/audit</span> - Query action logs</p>
-                <p><span class="method">POST</span> <span class="endpoint">/api/v1/override</span> - Manual human override</p>
-            </div>
+            <header style="padding:20px; background:#fff; border-bottom:1px solid #e6edf3;">
+                <h1 style="margin:0; font-family:Segoe UI, Roboto, Arial; color:#2c3e50;">KIRA Core API Documentation</h1>
+                <p style="margin:6px 0 0;color:#586069;">Interactive API reference (Swagger UI)</p>
+            </header>
+            <div id="swaggerui"></div>
+            <script src="https://unpkg.com/swagger-ui-dist@4/swagger-ui-bundle.js"></script>
+            <script>
+            window.onload = function() {
+                const ui = SwaggerUIBundle({
+                    url: '/openapi.json',
+                    dom_id: '#swaggerui',
+                    presets: [SwaggerUIBundle.presets.apis],
+                    layout: 'BaseLayout'
+                });
+            };
+            </script>
         </body>
         </html>
         """
-        return render_template_string(docs_html)
+        return render_template_string(swagger_html)
+
+
+    @app.route('/openapi.json', methods=['GET'])
+    def openapi_spec():
+        """Return a minimal OpenAPI spec describing core endpoints."""
+        spec = {
+            "openapi": "3.0.0",
+            "info": {
+                "title": "KIRA Core API",
+                "version": "v1",
+                "description": "OpenAPI spec for KIRA core endpoints."
+            },
+            "servers": [{"url": f"http://{request.host}"}],
+            "paths": {
+                "/auth/token": {
+                    "post": {
+                        "summary": "Obtain access token",
+                        "requestBody": {
+                            "required": True,
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "client_id": {"type": "string"},
+                                            "password": {"type": "string"}
+                                        },
+                                        "required": ["client_id", "password"]
+                                    }
+                                }
+                            }
+                        },
+                        "responses": {
+                            "200": {"description": "Access token returned"},
+                            "400": {"description": "Invalid request"}
+                        }
+                    }
+                },
+                "/api/v1/health": {
+                    "get": {"summary": "Health check","responses": {"200": {"description": "health status"}}}
+                },
+                "/api/v1/predict/iot": {
+                    "post": {
+                        "summary": "IoT prediction",
+                        "security": [{"bearerAuth": []}],
+                        "requestBody": {
+                            "required": True,
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "tower_id": {"type": "string"},
+                                            "district": {"type": "string"},
+                                            "sensor_data": {"type": "object"}
+                                        },
+                                        "required": ["tower_id", "district", "sensor_data"]
+                                    }
+                                }
+                            }
+                        },
+                        "responses": {"200": {"description": "prediction result"}, "401": {"description": "unauthorized"}}
+                    }
+                },
+                "/api/v1/predict/grid": {
+                    "post": {"summary": "Grid prediction","security": [{"bearerAuth": []}],"responses": {"200": {"description": "prediction result"}}}
+                },
+                "/api/v1/predict/generator": {
+                    "post": {"summary": "Generator prediction","security": [{"bearerAuth": []}],"responses": {"200": {"description": "prediction result"}}}
+                }
+            },
+            "components": {
+                "securitySchemes": {
+                    "bearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+                }
+            }
+        }
+        return jsonify(spec)
 
     # ------------------------------------------------------------------ #
     #  POST /api/v1/predict                                                #

@@ -1,0 +1,27 @@
+From 8b2f98f76c5cdcc420f5212abedba4bb6bb610ce Mon Sep 17 00:00:00 2001
+From: ernest <ernest@example.com>
+Date: Sat, 16 May 2026 01:12:48 -1000
+Subject: [PATCH 2/2] docs: note backend mount ownership requirements in
+ compose
+
+---
+ kigali_watchman/docker-compose.yml | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kigali_watchman/docker-compose.yml b/kigali_watchman/docker-compose.yml
+index eca3c98..a505bd7 100644
+--- a/kigali_watchman/docker-compose.yml
++++ b/kigali_watchman/docker-compose.yml
+@@ -87,6 +87,9 @@ services:
+       # Read-only model weights (immutable)
+       - ./backend/models:/app/models:ro
+       # Writable volumes for runtime state
++      # The backend image ships with an entrypoint that can chown these mounts
++      # when the container starts as root. If you override the container user,
++      # pre-create the host directories with UID/GID 1001 or make them writable.
+       - ./logs:/app/logs
+       - kira_audit_data:/app/audit
+       # Temporary directory (in-memory, cleaned up automatically)
+-- 
+2.43.0
+
