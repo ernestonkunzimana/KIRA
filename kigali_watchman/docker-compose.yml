@@ -87,6 +87,9 @@ services:
       # Read-only model weights (immutable)
       - ./backend/models:/app/models:ro
       # Writable volumes for runtime state
+      # The backend image ships with an entrypoint that can chown these mounts
+      # when the container starts as root. If you override the container user,
+      # pre-create the host directories with UID/GID 1001 or make them writable.
       - ./logs:/app/logs
       - kira_audit_data:/app/audit
       # Temporary directory (in-memory, cleaned up automatically)
