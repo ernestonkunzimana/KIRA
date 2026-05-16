@@ -40,6 +40,20 @@ Ensure you have Docker and Docker Compose installed.
    - **Core API**: `http://localhost:5000`
    - **API Documentation**: `http://localhost:5000/docs`
 
+   ### Host volume ownership (important)
+
+   When bind-mounting host directories for `/app/logs` or `/app/audit`, ensure the
+   host path is writable by the container runtime user (UID 1001). Two recommended
+   approaches:
+
+   - Change ownership on the host: `sudo chown -R 1001:1001 ./logs ./audit`
+   - Or make the directories world-writable (less secure): `chmod 0777 ./logs ./audit`
+
+   The backend image includes an entrypoint that will attempt to `chown` these
+   directories at container start when it runs as root (for example, during
+   orchestration deployments). If you prefer not to rely on that, pre-create and
+   chown the host directories before `docker-compose up`.
+
 ---
 
 ## 🛡️ Resilience & Safety Features
