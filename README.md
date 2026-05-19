@@ -85,11 +85,13 @@
 ## 🚀 Quick Start (Development)
 
 ### Prerequisites
+
 - Docker & Docker Compose v2+
 - Python 3.11+
 - Linux/Mac (Windows with WSL2)
 
 ### 1. Generate TLS Certificates
+
 ```bash
 cd /home/ernest/Desktop/Projects/secure-edge-ai-pipeline
 chmod +x generate_certs.sh
@@ -97,12 +99,14 @@ chmod +x generate_certs.sh
 ```
 
 ### 2. Create Environment File
+
 ```bash
 cp .env.example .env
 # Edit .env with your settings (optional for dev)
 ```
 
 ### 3. Install Python Dependencies
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # or `venv\Scripts\activate` on Windows
@@ -110,11 +114,13 @@ pip install -r requirements.txt
 ```
 
 ### 4. Deploy with Docker Compose
+
 ```bash
 docker compose up --build -d
 ```
 
 ### 5. Monitor Logs
+
 ```bash
 # Watch Edge AI Agent
 docker compose logs -f edge-ai-agent
@@ -124,6 +130,7 @@ docker compose logs -f
 ```
 
 ### 6. Test Attack Detection
+
 ```bash
 # The attack simulator will run automatically
 # Watch for anomaly detection alerts in edge-ai-agent logs
@@ -181,6 +188,7 @@ See [.env.example](.env.example) for all options.
 ## 📊 Performance Metrics
 
 ### AI Model Performance
+
 ```text
 Anomaly Detection Accuracy:
 ├─ Precision: 0.94 (6% false positive rate)
@@ -190,6 +198,7 @@ Anomaly Detection Accuracy:
 ```
 
 ### System Performance
+
 ```text
 Operational Metrics:
 ├─ Detection Latency: <100ms (p99)
@@ -204,6 +213,7 @@ Operational Metrics:
 ## 📦 Deliverables
 
 ### Python Production Modules (4 files)
+
 1. **edge_ai_anomaly_detection.py** (500+ lines)
    - Main inference engine with mTLS
    - Two-phase learning architecture
@@ -224,6 +234,7 @@ Operational Metrics:
    - Precision/recall/F1 reporting
 
 ### Configuration & Infrastructure
+
 - `requirements.txt` - Pinned dependencies (supply chain security)
 - `LICENSE` - MIT license with commercial-friendly terms
 - `.env.example` - All configurable options documented
@@ -231,6 +242,7 @@ Operational Metrics:
 - `docker-compose.yml` - Production-ready orchestration
 
 ### Documentation
+
 - `README.md` (this file)
 - `API_SPECIFICATION.md`
 - `SECURITY_HARDENING.md`
@@ -240,6 +252,7 @@ Operational Metrics:
 ## 🔄 Deployment Checklist
 
 ### Pre-Deployment
+
 - [ ] Review `.env.example` and customize for your environment
 - [ ] Generate TLS certificates: `./generate_certs.sh`
 - [ ] Update Mosquitto ACLs in `config/mosquitto.conf`
@@ -247,12 +260,14 @@ Operational Metrics:
 - [ ] Set encryption keys: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
 
 ### Deployment
+
 - [ ] `docker compose up --build -d`
 - [ ] Verify health: `docker compose ps`
 - [ ] Check logs: `docker compose logs edge-ai-agent`
 - [ ] Run attack simulator: observe anomaly detection
 
 ### Post-Deployment
+
 - [ ] Verify SIEM ingestion (check Splunk/Datadog)
 - [ ] Test webhook delivery (PagerDuty incident)
 - [ ] Validate audit logs: check `/logs/audit.jsonl`
@@ -263,6 +278,7 @@ Operational Metrics:
 ## 💼 Commercial Positioning
 
 ### Problems Solved
+
 | Problem | Solution | ROI |
 |---------|----------|-----|
 | Undetected infrastructure tampering | Real-time anomaly detection (92% F1) | Prevents multi-million $ breaches |
@@ -271,6 +287,7 @@ Operational Metrics:
 | Model retraining on restart | Model caching (zero downtime) | 99.99% uptime SLA |
 
 ### Market Positioning
+
 - **For ABB/Siemens/Ericsson:** Infrastructure-first, resilience-driven, African-scale
 - **For MSPs/Integrators:** White-label ready, extensible with custom playbooks
 - **For Enterprises:** Zero-label ML, offline-resilient, <30 min deployment
@@ -279,9 +296,9 @@ Operational Metrics:
 
 ## 🤝 Support & Licensing
 
-**For Commercial Inquiries:** contact@zentra.rw  
-**For Technical Support:** support@zentra.rw  
-**For Security Vulnerabilities:** security@zentra.rw
+**For Commercial Inquiries:** <contact@zentra.rw>  
+**For Technical Support:** <support@zentra.rw>  
+**For Security Vulnerabilities:** <security@zentra.rw>
 
 **GitHub Repository:** [zentra-ltd/kira-anomaly-detection](https://github.com/zentra-ltd/kira-anomaly-detection)
 
