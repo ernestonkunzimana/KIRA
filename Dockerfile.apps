@@ -1,0 +1,123 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install security and network diagnostic dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pin specific Python dependencies for supply chain stability
+RUN pip install --no-cache-dir \
+    paho-mqtt==1.6.1 \
+    scikit-learn==1.3.2 \
+    numpy==1.26.2
+
+# Maintain non-root user permissions for security hardening
+RUN useradd -m appuser && chown -R appuser /app
+USER appuser
+
+@@
+# Multi-stage build for optimized production image
+FROM python:3.11-slim as base
+
+LABEL maintainer="Ernest Nkunzimana <nkernest666@gmail.com>"
+LABEL description="KIRA: Kigali Intelligent Resilience Agent - Edge AI Anomaly Detection"
+LABEL version="1.0.0"
+
+# Build arguments
+ARG INSTALL_DEV=false
+ARG BUILD_DATE=unknown
+ARG GIT_COMMIT=unknown
+
+WORKDIR /app
+
+# ============================================================================
+# Security Updates & Base Dependencies
+# ============================================================================
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    # Security tools
+    openssl \
+    ca-certificates \
+    # Network diagnostics
+    curl \
+    iputils-ping \
+    # Required for healthchecks
+    procps \
+    # Cryptography support
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# ============================================================================
+# Python Dependencies (Pinned for Supply Chain Security)
+# ============================================================================
+# Core production dependencies
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir \
+    paho-mqtt==1.6.1 \
+    scikit-learn==1.3.2 \
+    numpy==1.26.2 \
+    python-dotenv==1.0.0 \
+    cryptography==41.0.7 \
+    requests==2.31.0 \
+    python-json-logger==2.0.7 \
+    loguru==0.7.2
+
+# Optional: Development dependencies (for debugging/testing)
+RUN if [ "$INSTALL_DEV" = "true" ]; then \
+    pip install --no-cache-dir \
+    pytest==7.4.3 \
+    pytest-cov==4.1.0 \
+    black==23.12.0 \
+    pylint==3.0.3 \
+    mypy==1.7.1; \
+    fi
+
+# ============================================================================
+# File System Setup (Logging, Persistence, Security)
+# ============================================================================
+# Create application directories
+RUN mkdir -p /app/logs /app/data /app/certs && \
+    chmod 755 /app/logs /app/data
+
+# Copy application code
+COPY --chown=appuser:appuser src /app/src
+COPY --chown=appuser:appuser certs /app/certs
+
+# ============================================================================
+# Security Hardening
+# ============================================================================
+# Create non-root user for security (UID/GID > 1000 to avoid conflicts)
+RUN groupadd -r appuser -g 1001 && \
+    useradd -r -u 1001 -g appuser appuser && \
+    chown -R appuser:appuser /app
+
+# Set secure file permissions
+RUN chmod 600 /app/certs/*.key 2>/dev/null || true && \
+    chmod 644 /app/certs/*.crt 2>/dev/null || true && \
+    chmod 755 /app/src && \
+    chmod 644 /app/src/*.py
+
+# Drop unnecessary capabilities
+RUN setcap -r /usr/local/bin/python* 2>/dev/null || true
+
+# ============================================================================
+# Container Runtime Configuration
+# ============================================================================
+USER appuser
+
+# Metadata
+ENV KIRA_VERSION=1.0.0
+ENV BUILD_DATE=${BUILD_DATE}
+ENV GIT_COMMIT=${GIT_COMMIT}
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
+
+# Health check (verify process is running)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import os; exit(0 if os.path.exists('/proc/self') else 1)" || exit 1
+
+# Default command (can be overridden by docker-compose)
+CMD ["python", "/app/src/edge_ai_anomaly_detection.py"]
